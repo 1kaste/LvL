@@ -152,36 +152,47 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const fetchData = useCallback(async () => {
         setIsStoreSettingsLoading(true);
         try {
+            // CHUNK 1: Fetch core application data required for most views.
             const [
                 usersRes,
-                deductionsRes,
                 productsRes,
                 categoriesRes,
-                salesRes,
-                suppliersRes,
-                poRes,
-                shiftsRes,
-                logsRes,
-                kegsRes,
-                discountsRes,
-                activityRes,
                 settingsRes,
                 paymentMethodsRes
             ] = await Promise.all([
                 supabase.from('profiles').select('*'),
-                supabase.from('deductions').select('*'),
                 supabase.from('products').select('*'),
                 supabase.from('categories').select('*'),
-                supabase.from('sales').select('*, sale_items(*)'),
-                supabase.from('suppliers').select('*'),
-                supabase.from('purchase_orders').select('*, purchase_order_items(*)'),
-                supabase.from('scheduled_shifts').select('*'),
-                supabase.from('time_logs').select('*'),
-                supabase.from('keg_instances').select('*, tapped_by_user:profiles!keg_instances_tapped_by_id_fkey(name), closed_by_user:profiles!keg_instances_closed_by_id_fkey(name)'),
-                supabase.from('discounts').select('*').order('name'),
-                supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(200),
                 supabase.from('store_settings').select('*').eq('id', 1).single(),
                 supabase.from('payment_methods').select('*'),
+            ]);
+    
+            // CHUNK 2: Fetch primary transactional data.
+            const [
+                salesRes,
+                logsRes,
+                poRes,
+                kegsRes,
+            ] = await Promise.all([
+                supabase.from('sales').select('*, sale_items(*)'),
+                supabase.from('time_logs').select('*'),
+                supabase.from('purchase_orders').select('*, purchase_order_items(*)'),
+                supabase.from('keg_instances').select('*, tapped_by_user:profiles!keg_instances_tapped_by_id_fkey(name), closed_by_user:profiles!keg_instances_closed_by_id_fkey(name)'),
+            ]);
+    
+            // CHUNK 3: Fetch supporting and secondary data.
+            const [
+                deductionsRes,
+                suppliersRes,
+                shiftsRes,
+                discountsRes,
+                activityRes
+            ] = await Promise.all([
+                supabase.from('deductions').select('*'),
+                supabase.from('suppliers').select('*'),
+                supabase.from('scheduled_shifts').select('*'),
+                supabase.from('discounts').select('*').order('name'),
+                supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(200),
             ]);
     
             // Check for critical errors that would prevent the app from functioning
