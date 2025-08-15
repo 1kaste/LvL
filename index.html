@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#fc6621" />
+    <title>Jobiflow - Powered By Kaste Tech & Brands</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .receipt-print-area, .receipt-print-area * {
+          visibility: visible;
+        }
+        .receipt-print-area {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+        }
+        .print-hide {
+          display: none !important;
+        }
+      }
+      /* On-Screen Keyboard Styles */
+      .keyboard-key {
+        @apply h-full rounded-lg flex items-center justify-center font-semibold text-base md:text-lg transition-all duration-100;
+        @apply bg-white/10 hover:bg-white/20;
+        flex-grow: 1;
+        flex-basis: 0;
+      }
+      .keyboard-key:active {
+        @apply transform scale-95 bg-white/30;
+        box-shadow: 0 0 20px 2px theme(colors.primary.cyan.500);
+      }
+      .dark .keyboard-key:active {
+        box-shadow: 0 0 20px 2px theme(colors.primary.orange.500);
+      }
+      .special-key {
+        flex-grow: 1.5;
+        @apply px-2;
+      }
+      .space-key {
+        flex-grow: 8;
+      }
+      .resize-handle {
+        @apply absolute bottom-0 right-0 w-5 h-5 cursor-se-resize;
+        @apply flex items-end justify-end text-white/30;
+      }
+      .resize-handle-inner {
+        @apply w-3 h-3 border-r-2 border-b-2 border-white/50;
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            boxShadow: {
+              'keyboard-light': '0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1), 0 0 20px 2px theme(colors.primary.cyan.600)',
+              'keyboard-dark': '0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2), 0 0 20px 2px theme(colors.primary.orange.600)',
+            },
+            colors: {
+              'primary-orange': {
+                '50': '#fff4ed',
+                '100': '#ffe8d5',
+                '200': '#fecba8',
+                '300': '#feaa7a',
+                '400': '#fd8248',
+                '500': '#fc6621',
+                '600': '#ea5314',
+                '700': '#c24113',
+                '800': '#9a3412',
+                '900': '#7c2d11',
+                '950': '#431407',
+              },
+              'primary-cyan': {
+                '50': '#f0fafa',
+                '100': '#e0f4f4',
+                '200': '#c2e9e9',
+                '300': '#94dcdc',
+                '400': '#68cdcd',
+                '500': '#46c0c0',
+                '600': '#33a9a9',
+                '700': '#2b8b8b',
+                '800': '#2a6f6f',
+                '900': '#275a5a',
+                '950': '#193a3a',
+              },
+              'dark-mode-blue': {
+                '50': '#f0f9fa',
+                '100': '#e0f2f6',
+                '200': '#c3e5ed',
+                '300': '#99d5e3',
+                '400': '#68bed5',
+                '500': '#44a3c1',
+                '600': '#3288a9',
+                '700': '#296e8d',
+                '800': '#265870',
+                '900': '#244a5e',
+                '950': '#152c3a',
+              },
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "react/": "https://esm.sh/react@^19.1.1/",
+    "react": "https://esm.sh/react@^19.1.1",
+    "recharts": "https://esm.sh/recharts@^3.1.2",
+    "@google/genai": "https://esm.sh/@google/genai@^1.13.0",
+    "react-icons/": "https://esm.sh/react-icons@^5.5.0/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.8.0",
+    "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
+    "jspdf": "https://esm.sh/jspdf@^2.5.1",
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@^3.8.2",
+    "html-to-image": "https://esm.sh/html-to-image@^1.11.11",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.45.0",
+    "uuid": "https://esm.sh/uuid@^11.1.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-100 dark:bg-dark-mode-blue-950">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "Copy of Jobiflow 1",
+  "description": "Jobiflow - A modern Point of Sale (POS) system. Powered By Kaste Tech & Brands.",
+  "requestFramePermissions": [
+    "usb",
+    "bluetooth"
+  ],
+  "prompt": ""
+}
