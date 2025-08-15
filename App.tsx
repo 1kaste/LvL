@@ -162,7 +162,6 @@ const MainAppLayout: React.FC<{
       case '/users': return 'User Management';
       case '/ai-suggestions': return 'Business Growth Insights';
       case '/settings': return `Settings${settingsTab ? ` - ${settingsTab.charAt(0).toUpperCase() + settingsTab.slice(1)}` : ''}`;
-      case '/activity-log': return 'Activity Log';
       default: return 'Jobiflow';
     }
   };
