@@ -227,6 +227,13 @@ export interface DataContext {
   toggleTheme: () => void;
   // State
   isStoreSettingsLoading: boolean;
+  isLoading: {
+    suppliers: boolean;
+    purchaseOrders: boolean;
+    scheduledShifts: boolean;
+    discounts: boolean;
+    activityLogs: boolean;
+  };
   // Auth & User
   login: (email: string, password?: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -323,4 +330,11 @@ export interface DataContext {
   
   // Activity Log
   activityLogs: ActivityLog[];
+
+  // On-demand Fetching
+  fetchSuppliers: () => Promise<void>;
+  fetchPurchaseOrders: () => Promise<void>;
+  fetchScheduledShifts: () => Promise<void>;
+  fetchDiscounts: () => Promise<void>;
+  fetchActivityLogs: () => Promise<void>;
 }

@@ -1,20 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import TopControlsBar from './components/layout/TopControlsBar';
-import Dashboard from './pages/Dashboard';
-import Order from './pages/Order';
-import Inventory from './pages/Inventory';
-import Reports from './pages/Reports';
-import PurchaseOrders from './pages/PurchaseOrders';
-import Suppliers from './pages/Suppliers';
-import AISuggestions from './pages/AISuggestions';
-import Users from './pages/Users';
-import Settings from './pages/Settings';
-import ShiftSummary from './pages/ShiftSummary';
-import KegManagement from './pages/KegManagement';
-import ActivityLog from './pages/ActivityLog';
 import { Theme, Role, User, TimeLog, Sale } from './types';
 import { DataProvider, useData } from './context/DataContext';
 import { PrinterProvider } from './context/PrinterContext';
@@ -28,6 +16,21 @@ import { generateShiftReportPDF } from './utils/generateShiftReportPDF';
 import ShareReportModal from './components/common/ShareReportModal';
 import UserLockScreen from './components/common/UserLockScreen';
 import Toast from './components/common/Toast';
+
+// Lazy load page components
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Order = lazy(() => import('./pages/Order'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const Reports = lazy(() => import('./pages/Reports'));
+const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'));
+const Suppliers = lazy(() => import('./pages/Suppliers'));
+const AISuggestions = lazy(() => import('./pages/AISuggestions'));
+const Users = lazy(() => import('./pages/Users'));
+const Settings = lazy(() => import('./pages/Settings'));
+const ShiftSummary = lazy(() => import('./pages/ShiftSummary'));
+const KegManagement = lazy(() => import('./pages/KegManagement'));
+const ActivityLog = lazy(() => import('./pages/ActivityLog'));
+
 
 const LockScreen: React.FC<{ 
     onUnlock: (pin: string) => boolean; 
@@ -119,6 +122,12 @@ const LockScreen: React.FC<{
     );
 };
 
+const LoadingSpinner: React.FC = () => (
+    <div className="flex items-center justify-center h-full w-full">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-orange-500"></div>
+    </div>
+);
+
 
 const MainAppLayout: React.FC<{ 
     currentUser: User; 
@@ -162,7 +171,7 @@ const MainAppLayout: React.FC<{
       case '/users': return 'User Management';
       case '/ai-suggestions': return 'Business Growth Insights';
       case '/settings': return `Settings${settingsTab ? ` - ${settingsTab.charAt(0).toUpperCase() + settingsTab.slice(1)}` : ''}`;
-      default: return 'Jobiflow';
+            default: return 'Jobiflow';
     }
   };
 
@@ -251,23 +260,25 @@ const MainAppLayout: React.FC<{
             </>
           )}
           <main className={`flex-1 overflow-y-auto ${isOrderPage ? 'h-full' : 'p-4 sm:p-6 lg:p-8 bg-gray-200/50 dark:bg-dark-mode-blue-950/50'}`}>
-            <Routes>
-              <Route path="/" element={<ProtectedRoute path="/"><Dashboard /></ProtectedRoute>} />
-              <Route path="/order" element={<ProtectedRoute path="/order"><Order toggleSidebar={toggleSidebar} toggleKeyboard={toggleKeyboard} onLogout={onSimpleLogout} onSaleLock={onSaleLock} /></ProtectedRoute>} />
-              
-              <Route path="/inventory" element={<ProtectedRoute path="/inventory"><Inventory /></ProtectedRoute>} />
-              <Route path="/keg-management" element={<ProtectedRoute path="/keg-management"><KegManagement /></ProtectedRoute>} />
-              <Route path="/reports" element={<ProtectedRoute path="/reports"><Reports currentTheme={theme} /></ProtectedRoute>} />
-              <Route path="/shift-summary" element={<ProtectedRoute path="/shift-summary"><ShiftSummary /></ProtectedRoute>} />
-              <Route path="/activity-log" element={<ProtectedRoute path="/activity-log"><ActivityLog /></ProtectedRoute>} />
-              <Route path="/purchase-orders" element={<ProtectedRoute path="/purchase-orders"><PurchaseOrders /></ProtectedRoute>} />
-              <Route path="/suppliers" element={<ProtectedRoute path="/suppliers"><Suppliers /></ProtectedRoute>} />
-              <Route path="/users" element={<ProtectedRoute path="/users"><Users /></ProtectedRoute>} />
-              <Route path="/ai-suggestions" element={<ProtectedRoute path="/ai-suggestions"><AISuggestions /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute path="/settings"><Settings /></ProtectedRoute>} />
-              
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/" element={<ProtectedRoute path="/"><Dashboard /></ProtectedRoute>} />
+                <Route path="/order" element={<ProtectedRoute path="/order"><Order toggleSidebar={toggleSidebar} toggleKeyboard={toggleKeyboard} onLogout={onSimpleLogout} onSaleLock={onSaleLock} /></ProtectedRoute>} />
+                
+                <Route path="/inventory" element={<ProtectedRoute path="/inventory"><Inventory /></ProtectedRoute>} />
+                <Route path="/keg-management" element={<ProtectedRoute path="/keg-management"><KegManagement /></ProtectedRoute>} />
+                <Route path="/reports" element={<ProtectedRoute path="/reports"><Reports currentTheme={theme} /></ProtectedRoute>} />
+                <Route path="/shift-summary" element={<ProtectedRoute path="/shift-summary"><ShiftSummary /></ProtectedRoute>} />
+                <Route path="/activity-log" element={<ProtectedRoute path="/activity-log"><ActivityLog /></ProtectedRoute>} />
+                <Route path="/purchase-orders" element={<ProtectedRoute path="/purchase-orders"><PurchaseOrders /></ProtectedRoute>} />
+                <Route path="/suppliers" element={<ProtectedRoute path="/suppliers"><Suppliers /></ProtectedRoute>} />
+                <Route path="/users" element={<ProtectedRoute path="/users"><Users /></ProtectedRoute>} />
+                <Route path="/ai-suggestions" element={<ProtectedRoute path="/ai-suggestions"><AISuggestions /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute path="/settings"><Settings /></ProtectedRoute>} />
+                
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </main>
         </div>
       </div>
@@ -498,31 +509,25 @@ const AppContent: React.FC = () => {
     };
 
     const handleAdminClockOut = async (user: User) => {
-        try {
-            const justCompletedLog = await adminClockOut(user.id);
+        const justCompletedLog = await adminClockOut(user.id);
     
-            if (!justCompletedLog) {
-                alert("An error occurred during admin clock out. It's possible your session was out of sync and has been corrected. You are being logged out.");
-                handleSimpleLogout();
-                return;
-            }
-        
-            const shiftSalesData = sales.filter(s => s.servedById === user.id && new Date(s.date) >= new Date(justCompletedLog.clockInTime));
-        
-            try {
-                const pdfFile = await generateShiftReportPDF(user, justCompletedLog, shiftSalesData, storeSettings);
-                setShiftReportFile(pdfFile);
-                setShiftReportDate(justCompletedLog.clockOutTime ? new Date(justCompletedLog.clockOutTime) : new Date());
-                setUserForShare(user);
-                setIsShareModalOpen(true);
-            } catch (error) {
-                console.error("Failed to generate PDF for admin:", error);
-                alert("Could not generate the shift report PDF. Logging out.");
-                handleSimpleLogout();
-            }
+        if (!justCompletedLog) {
+            alert("An error occurred during admin clock out. It's possible your session was out of sync and has been corrected. You are being logged out.");
+            handleSimpleLogout();
+            return;
+        }
+    
+        const shiftSalesData = sales.filter(s => s.servedById === user.id && new Date(s.date) >= new Date(justCompletedLog.clockInTime));
+    
+        try {
+            const pdfFile = await generateShiftReportPDF(user, justCompletedLog, shiftSalesData, storeSettings);
+            setShiftReportFile(pdfFile);
+            setShiftReportDate(justCompletedLog.clockOutTime ? new Date(justCompletedLog.clockOutTime) : new Date());
+            setUserForShare(user);
+            setIsShareModalOpen(true);
         } catch (error) {
-            console.error("Failed to perform admin clock out:", error);
-            alert("A critical error occurred during the clock-out process. You will be logged out to prevent data inconsistency.");
+            console.error("Failed to generate PDF for admin:", error);
+            alert("Could not generate the shift report PDF. Logging out.");
             handleSimpleLogout();
         }
     };
