@@ -9,6 +9,7 @@ import SearchInput from '../components/common/SearchInput';
 import UserDetailsModal from '../components/common/UserDetailsModal';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import { FaPlus, FaEye, FaTrash, FaUserShield } from 'react-icons/fa';
+import Toast from '../components/common/Toast';
 
 const getRoleColor = (role: User['role']) => {
     switch (role) {
@@ -34,6 +35,7 @@ const Users: React.FC = () => {
     const [isUserDetailsModalOpen, setUserDetailsModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
+    const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
 
     const filteredUsers = useMemo(() => {
         return users.filter(u =>
@@ -58,8 +60,15 @@ const Users: React.FC = () => {
 
     const handleConfirmDelete = async () => {
         if (userToDelete) {
-            await deleteUser(userToDelete.id);
-            setUserToDelete(null);
+            try {
+                await deleteUser(userToDelete.id);
+                setToastInfo({ show: true, message: `User "${userToDelete.name}" was successfully deleted.`, type: 'success' });
+            } catch (error: any) {
+                console.error("Failed to delete user:", error);
+                setToastInfo({ show: true, message: `Error: ${error.message}`, type: 'error' });
+            } finally {
+                setUserToDelete(null);
+            }
         }
     };
 
@@ -125,7 +134,7 @@ const Users: React.FC = () => {
                                     <td className="p-3">
                                         <div className="flex space-x-2">
                                             <Button variant="secondary" className="!p-2" onClick={() => handleViewUserDetails(user)} title="View & Edit Details"><FaEye /></Button>
-                                            <Button variant="danger" className="!p-2" onClick={() => handleDeleteClick(user)} disabled={user.id === currentUser?.id || (currentUser?.role === 'Manager' && user.role === 'Admin')} title="Delete User"><FaTrash /></Button>
+                                            <Button variant="danger" className="!p-2" onClick={() => handleDeleteClick(user)} title="Delete User"><FaTrash /></Button>
                                         </div>
                                     </td>
                                 </tr>
@@ -157,6 +166,12 @@ const Users: React.FC = () => {
                 onConfirm={handleConfirmDelete}
                 title="Delete User"
                 message={`Are you sure you want to delete the user "${userToDelete?.name}"? This action cannot be undone.`}
+            />
+            <Toast 
+                message={toastInfo.message} 
+                show={toastInfo.show} 
+                onClose={() => setToastInfo({ ...toastInfo, show: false })} 
+                type={toastInfo.type}
             />
         </>
     );

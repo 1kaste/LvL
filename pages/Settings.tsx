@@ -1031,7 +1031,7 @@ const Settings: React.FC = () => {
                                 <td className="p-3">
                                     <div className="flex space-x-2">
                                         <Button variant="secondary" className="!p-2" onClick={() => handleViewUserDetails(user)}><FaEye/></Button>
-                                        <Button variant="danger" className="!p-2" onClick={() => handleDeleteUser(user)} disabled={user.id === currentUser?.id}><FaTrash/></Button>
+                                        <Button variant="danger" className="!p-2" onClick={() => handleDeleteUser(user)}><FaTrash/></Button>
                                     </div>
                                 </td>
                             </tr>

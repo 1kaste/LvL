@@ -531,14 +531,12 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             throw new Error("Unauthorized: Only Admins or Managers can delete users.");
         }
     
-        if (currentUser.id === userId) {
-            throw new Error("Action not allowed: Users cannot delete their own account.");
-        }
-    
         const userToDelete = users.find(u => u.id === userId);
         if (!userToDelete) {
             throw new Error("User to be deleted not found.");
         }
+
+        const isDeletingSelf = currentUser.id === userId;
     
         if (currentUser.role === 'Manager' && userToDelete.role === 'Admin') {
             throw new Error("Unauthorized: Managers cannot delete Admin accounts.");
@@ -554,7 +552,11 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
         
         setUsers(prev => prev.filter(u => u.id !== userId));
-        await addActivityLog('User', `Deleted user: ${userToDelete.name}`);
+        await addActivityLog('User', `Deleted user: ${userToDelete.name}`, undefined, isDeletingSelf ? userToDelete : currentUser);
+
+        if (isDeletingSelf) {
+            await logout();
+        }
     };
 
     const addUserDeduction = async (userId: string, deductionData: { reason: string, amount: number }) => {
