@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jobiflow-pos-cache-v1';
+const CACHE_NAME = 'jobiflow-pos-cache-v3';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',

@@ -171,7 +171,8 @@ const MainAppLayout: React.FC<{
       case '/users': return 'User Management';
       case '/ai-suggestions': return 'Business Growth Insights';
       case '/settings': return `Settings${settingsTab ? ` - ${settingsTab.charAt(0).toUpperCase() + settingsTab.slice(1)}` : ''}`;
-            default: return 'Jobiflow';
+      case '/activity-log': return 'Activity Log';
+      default: return 'Jobiflow';
     }
   };
 
@@ -314,6 +315,13 @@ const AppContent: React.FC = () => {
     const [updateAvailable, setUpdateAvailable] = useState(false);
     const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    
+    // Generic Toast State
+    const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
+
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+        setToastInfo({ show: true, message, type });
+    };
 
     // PWA Install Prompt Handler
     useEffect(() => {
@@ -328,7 +336,7 @@ const AppContent: React.FC = () => {
     // PWA Update Handler & Service Worker Registration
     useEffect(() => {
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then(reg => {
+            navigator.serviceWorker.register('./sw.js').then(reg => {
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
                     if (newWorker) {
@@ -432,42 +440,48 @@ const AppContent: React.FC = () => {
 
     const handleRequestClearance = async (declaredAmount: number) => {
         if (userToClockOut && shiftExpectedSales) {
-            const ongoingLog = timeLogs.find(l => l.userId === userToClockOut.id && l.status === 'Ongoing');
-            if (!ongoingLog) {
-                console.error("Could not find ongoing log to generate report.");
-                alert("An error occurred. Could not generate shift report.");
-            } else {
-                const clockOutTime = new Date();
-                const durationMs = clockOutTime.getTime() - new Date(ongoingLog.clockInTime).getTime();
-                const tempLogForPDF: TimeLog = {
-                    ...ongoingLog,
-                    clockOutTime,
-                    durationHours: durationMs / (1000 * 60 * 60),
-                    status: 'Pending Approval',
+            try {
+                const ongoingLog = timeLogs.find(l => l.userId === userToClockOut.id && l.status === 'Ongoing');
+                if (!ongoingLog) {
+                    console.error("Could not find ongoing log to generate report.");
+                    alert("An error occurred. Could not generate shift report.");
+                } else {
+                    const clockOutTime = new Date();
+                    const durationMs = clockOutTime.getTime() - new Date(ongoingLog.clockInTime).getTime();
+                    const tempLogForPDF: TimeLog = {
+                        ...ongoingLog,
+                        clockOutTime,
+                        durationHours: durationMs / (1000 * 60 * 60),
+                        status: 'Pending Approval',
+                        declaredAmount,
+                        expectedSales: shiftExpectedSales,
+                        difference: declaredAmount - shiftExpectedSales.cash
+                    };
+                    const shiftSalesData = sales.filter(s => s.servedById === userToClockOut.id && new Date(s.date) >= new Date(ongoingLog.clockInTime));
+
+                    try {
+                        const pdfFile = await generateShiftReportPDF(userToClockOut, tempLogForPDF, shiftSalesData, storeSettings);
+                        setShiftReportFile(pdfFile);
+                        setShiftReportDate(clockOutTime);
+                        setUserForShare(userToClockOut);
+                    } catch (error) {
+                        console.error("Failed to generate PDF:", error);
+                        alert("Could not generate the shift report PDF. Please proceed with logging out.");
+                    }
+                }
+                
+                await requestShiftClearance(userToClockOut.id, {
                     declaredAmount,
                     expectedSales: shiftExpectedSales,
-                    difference: declaredAmount - shiftExpectedSales.cash
-                };
-                const shiftSalesData = sales.filter(s => s.servedById === userToClockOut.id && new Date(s.date) >= new Date(ongoingLog.clockInTime));
+                });
 
-                try {
-                    const pdfFile = await generateShiftReportPDF(userToClockOut, tempLogForPDF, shiftSalesData, storeSettings);
-                    setShiftReportFile(pdfFile);
-                    setShiftReportDate(clockOutTime);
-                    setUserForShare(userToClockOut);
-                } catch (error) {
-                    console.error("Failed to generate PDF:", error);
-                    alert("Could not generate the shift report PDF. Please proceed with logging out.");
-                }
+                setIsCashUpOpen(false);
+                setIsShareModalOpen(true);
+            } catch (error) {
+                console.error("Failed to request shift clearance:", error);
+                const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+                showToast(`Clock-out failed: ${errorMessage}`, 'error');
             }
-            
-            await requestShiftClearance(userToClockOut.id, {
-                declaredAmount,
-                expectedSales: shiftExpectedSales,
-            });
-
-            setIsCashUpOpen(false);
-            setIsShareModalOpen(true);
         }
     };
     
@@ -509,26 +523,26 @@ const AppContent: React.FC = () => {
     };
 
     const handleAdminClockOut = async (user: User) => {
-        const justCompletedLog = await adminClockOut(user.id);
-    
-        if (!justCompletedLog) {
-            alert("An error occurred during admin clock out. It's possible your session was out of sync and has been corrected. You are being logged out.");
-            handleSimpleLogout();
-            return;
-        }
-    
-        const shiftSalesData = sales.filter(s => s.servedById === user.id && new Date(s.date) >= new Date(justCompletedLog.clockInTime));
-    
         try {
+            const justCompletedLog = await adminClockOut(user.id);
+        
+            if (!justCompletedLog) {
+                showToast("An error occurred during admin clock out. Your session may be out of sync and has been corrected. Please log out and log back in.", 'info');
+                handleSimpleLogout();
+                return;
+            }
+        
+            const shiftSalesData = sales.filter(s => s.servedById === user.id && new Date(s.date) >= new Date(justCompletedLog.clockInTime));
+        
             const pdfFile = await generateShiftReportPDF(user, justCompletedLog, shiftSalesData, storeSettings);
             setShiftReportFile(pdfFile);
             setShiftReportDate(justCompletedLog.clockOutTime ? new Date(justCompletedLog.clockOutTime) : new Date());
             setUserForShare(user);
             setIsShareModalOpen(true);
         } catch (error) {
-            console.error("Failed to generate PDF for admin:", error);
-            alert("Could not generate the shift report PDF. Logging out.");
-            handleSimpleLogout();
+            console.error("Failed to perform admin clock out:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            showToast(`Admin clock-out failed: ${errorMessage}`, 'error');
         }
     };
 
@@ -635,6 +649,12 @@ const AppContent: React.FC = () => {
                     }}
                 />
             )}
+            <Toast 
+                message={toastInfo.message} 
+                show={toastInfo.show} 
+                onClose={() => setToastInfo({ ...toastInfo, show: false })} 
+                type={toastInfo.type}
+            />
         </PrinterProvider>
     );
 };
