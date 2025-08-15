@@ -162,7 +162,8 @@ const MainAppLayout: React.FC<{
       case '/users': return 'User Management';
       case '/ai-suggestions': return 'Business Growth Insights';
       case '/settings': return `Settings${settingsTab ? ` - ${settingsTab.charAt(0).toUpperCase() + settingsTab.slice(1)}` : ''}`;
-            default: return 'Jobiflow';
+      case '/activity-log': return 'Activity Log';
+      default: return 'Jobiflow';
     }
   };
 
@@ -498,25 +499,31 @@ const AppContent: React.FC = () => {
     };
 
     const handleAdminClockOut = async (user: User) => {
-        const justCompletedLog = await adminClockOut(user.id);
-    
-        if (!justCompletedLog) {
-            alert("An error occurred during admin clock out. It's possible your session was out of sync and has been corrected. You are being logged out.");
-            handleSimpleLogout();
-            return;
-        }
-    
-        const shiftSalesData = sales.filter(s => s.servedById === user.id && new Date(s.date) >= new Date(justCompletedLog.clockInTime));
-    
         try {
-            const pdfFile = await generateShiftReportPDF(user, justCompletedLog, shiftSalesData, storeSettings);
-            setShiftReportFile(pdfFile);
-            setShiftReportDate(justCompletedLog.clockOutTime ? new Date(justCompletedLog.clockOutTime) : new Date());
-            setUserForShare(user);
-            setIsShareModalOpen(true);
+            const justCompletedLog = await adminClockOut(user.id);
+    
+            if (!justCompletedLog) {
+                alert("An error occurred during admin clock out. It's possible your session was out of sync and has been corrected. You are being logged out.");
+                handleSimpleLogout();
+                return;
+            }
+        
+            const shiftSalesData = sales.filter(s => s.servedById === user.id && new Date(s.date) >= new Date(justCompletedLog.clockInTime));
+        
+            try {
+                const pdfFile = await generateShiftReportPDF(user, justCompletedLog, shiftSalesData, storeSettings);
+                setShiftReportFile(pdfFile);
+                setShiftReportDate(justCompletedLog.clockOutTime ? new Date(justCompletedLog.clockOutTime) : new Date());
+                setUserForShare(user);
+                setIsShareModalOpen(true);
+            } catch (error) {
+                console.error("Failed to generate PDF for admin:", error);
+                alert("Could not generate the shift report PDF. Logging out.");
+                handleSimpleLogout();
+            }
         } catch (error) {
-            console.error("Failed to generate PDF for admin:", error);
-            alert("Could not generate the shift report PDF. Logging out.");
+            console.error("Failed to perform admin clock out:", error);
+            alert("A critical error occurred during the clock-out process. You will be logged out to prevent data inconsistency.");
             handleSimpleLogout();
         }
     };

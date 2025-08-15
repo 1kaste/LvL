@@ -78,32 +78,33 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             // These tables have permissive RLS policies and should not hang.
             const { data: settingsData, error: settingsError } = await supabase.from('store_settings').select('*').eq('id', 1).single();
             if (settingsError) throw settingsError;
+            if (!settingsData) throw new Error("Store settings not found.");
+
 
             const { data: usersData, error: usersError } = await supabase.from('profiles').select('id, name, email, role, pin');
             if (usersError) throw usersError;
+            if (!usersData) throw new Error("Users not found.");
     
             // Set state with critical data immediately.
-            if (settingsData) {
-                const mappedSettings: StoreSettings = {
-                    storeName: settingsData.store_name,
-                    address: settingsData.address,
-                    phone: settingsData.phone,
-                    email: settingsData.email,
-                    logoUrl: settingsData.logo_url,
-                    receiptHeader: settingsData.receipt_header,
-                    receiptFooter: settingsData.receipt_footer,
-                    showLogoOnReceipt: settingsData.show_logo_on_receipt,
-                    pdfFooterText: settingsData.pdf_footer_text,
-                    pdfFooterLogoUrl: settingsData.pdf_footer_logo_url,
-                    showPdfFooter: settingsData.show_pdf_footer,
-                    systemLockPin: settingsData.system_lock_pin,
-                    autoLockOnPrint: settingsData.auto_lock_on_print,
-                    paymentMethods: [], // Not needed for login screen
-                };
-                setStoreSettings(mappedSettings);
-            }
+            const mappedSettings: StoreSettings = {
+                storeName: settingsData.store_name,
+                address: settingsData.address,
+                phone: settingsData.phone,
+                email: settingsData.email,
+                logoUrl: settingsData.logo_url,
+                receiptHeader: settingsData.receipt_header,
+                receiptFooter: settingsData.receipt_footer,
+                showLogoOnReceipt: settingsData.show_logo_on_receipt,
+                pdfFooterText: settingsData.pdf_footer_text,
+                pdfFooterLogoUrl: settingsData.pdf_footer_logo_url,
+                showPdfFooter: settingsData.show_pdf_footer,
+                systemLockPin: settingsData.system_lock_pin,
+                autoLockOnPrint: settingsData.auto_lock_on_print,
+                paymentMethods: [], // Not needed for login screen
+            };
+            setStoreSettings(mappedSettings);
     
-            const fetchedUsers: User[] = (usersData || []).map((u) => ({
+            const fetchedUsers: User[] = usersData.map((u) => ({
                 id: u.id, name: u.name, email: u.email!, role: u.role, pin: u.pin ?? undefined,
                 timeClockStatus: 'Clocked Out', deductions: [],
             }));
@@ -126,7 +127,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             return;
         }
         const logData: ActivityLogInsert = { type, description, details: details || undefined, user_id: logUser.id, user_name: logUser.name };
-        const { data: newLog, error } = await supabase.from('activity_logs').insert([logData]).select().single();
+        const { data: newLog, error } = await supabase.from('activity_logs').insert([logData] as any).select().single();
         if (error) {
             console.error("Error logging activity:", error);
         } else if (newLog) {
@@ -223,7 +224,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             setProducts(fetchedProducts);
             const productMap = new Map(fetchedProducts.map(p => [p.id, p]));
             
-            const fetchedSuppliers: Supplier[] = (suppliersRes.data || []).map(s => ({...s, id: s.id!, contactPerson: s.contact_person, bankAccountNumber: s.bank_account_number ?? undefined, bankBranch: s.bank_branch ?? undefined, bankName: s.bank_name ?? undefined, paymentTerms: s.payment_terms ?? undefined, mpesaPaybill: s.mpesa_paybill ?? undefined, notes: s.notes ?? undefined}));
+            const fetchedSuppliers: Supplier[] = (suppliersRes.data || []).map(s => ({...s as any, id: s.id!, contactPerson: s.contact_person, bankAccountNumber: s.bank_account_number ?? undefined, bankBranch: s.bank_branch ?? undefined, bankName: s.bank_name ?? undefined, paymentTerms: s.payment_terms ?? undefined, mpesaPaybill: s.mpesa_paybill ?? undefined, notes: s.notes ?? undefined}));
             setSuppliers(fetchedSuppliers);
             const supplierMap = new Map(fetchedSuppliers.map(s => [s.id, s.name]));
 
@@ -259,17 +260,17 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 });
             }
 
-            setSales((salesRes.data || []).map((s) => ({
+            setSales((salesRes.data || []).map((s: any) => ({
                 id: s.id, date: new Date(s.date), servedBy: s.served_by_name, servedById: s.served_by_id, paymentMethod: s.payment_method,
                 customerType: s.customer_type, total: s.total, subtotal: s.subtotal, tax: s.tax,
-                items: (s.sale_items as any[] || []).map((si) => ({ ...productMap.get(si.product_id)!, price: si.price_at_sale, name: si.product_name, quantity: si.quantity })),
+                items: (s.sale_items as any[] || []).map((si: any) => ({ ...productMap.get(si.product_id)!, price: si.price_at_sale, name: si.product_name, quantity: si.quantity })),
                 discountApplied: s.discount_name ? { name: s.discount_name, amount: s.discount_amount! } : undefined
             } as Sale)));
             
-            setPurchaseOrders((poRes.data || []).map((po) => ({
+            setPurchaseOrders((poRes.data || []).map((po: any) => ({
                 id: po.id, supplierId: po.supplier_id, orderDate: new Date(po.order_date), receivedDate: po.received_date ? new Date(po.received_date) : undefined,
                 supplierName: supplierMap.get(po.supplier_id) || 'N/A', invoiceNo: po.invoice_no!, totalCost: po.total_cost, status: po.status,
-                items: (po.purchase_order_items as any[] || []).map((poi) => ({productId: poi.product_id, name: productMap.get(poi.product_id)?.name || 'N/A', quantityOrdered: poi.quantity_ordered, quantityReceived: poi.quantity_received, cost: poi.cost})),
+                items: (po.purchase_order_items as any[] || []).map((poi: any) => ({productId: poi.product_id, name: productMap.get(poi.product_id)?.name || 'N/A', quantityOrdered: poi.quantity_ordered, quantityReceived: poi.quantity_received, cost: poi.cost})),
                 receivedBy: nameMap.get(po.received_by_id!)
             } as PurchaseOrder)));
 
@@ -295,7 +296,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const hasOngoingShifts = mappedTimeLogs.some(log => log.status === 'Ongoing');
             setDayStarted(hasOngoingShifts);
 
-            setKegInstances((kegsRes.data || []).map((k): KegInstance => ({
+            setKegInstances((kegsRes.data || []).map((k: any): KegInstance => ({
                 id: k.id,
                 productId: k.product_id,
                 productName: productMap.get(k.product_id)?.name || 'N/A',
@@ -303,9 +304,9 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 currentVolume: k.current_volume,
                 status: k.status,
                 tappedDate: k.tapped_date ? new Date(k.tapped_date) : undefined,
-                tappedBy: (k.tapped_by_user as any)?.name ?? nameMap.get(k.tapped_by_id!),
+                tappedBy: k.tapped_by_user?.name ?? nameMap.get(k.tapped_by_id!),
                 closedDate: k.closed_date ? new Date(k.closed_date) : undefined,
-                closedBy: (k.closed_by_user as any)?.name ?? nameMap.get(k.closed_by_id!),
+                closedBy: k.closed_by_user?.name ?? nameMap.get(k.closed_by_id!),
                 sales: (k.sales as any[]) || []
             })));
 
@@ -368,12 +369,12 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                         counted_amount: countedAmount,
                         difference: finalDifference,
                         approved_by_id: session.user.id
-                    }).eq('id', pendingLogData.id);
+                    } as any).eq('id', pendingLogData.id);
 
                     if (!logUpdateError) {
                         const { error: profileUpdateError } = await supabase.from('profiles').update({ 
                             time_clock_status: 'Clocked Out' 
-                        }).eq('id', pendingLogData.user_id);
+                        } as any).eq('id', pendingLogData.user_id);
 
                         if (!profileUpdateError) {
                             console.log("Admin state successfully auto-resolved.");
@@ -395,7 +396,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                     id: profileData.id, name: profileData.name, email: profileData.email!, role: profileData.role,
                     pin: profileData.pin ?? undefined, overridePin: profileData.override_pin ?? undefined,
                     salaryAmount: profileData.salary_amount ?? undefined,
-                    deductions: (deductions || []).map(d => ({...d, userId: d.user_id, date: new Date(d.date)})),
+                    deductions: (deductions || []).map(d => ({...d as any, userId: d.user_id, date: new Date(d.date)})),
                     timeClockStatus: profileData.time_clock_status,
                     clockInTime: profileData.clock_in_time ? new Date(profileData.clock_in_time) : undefined
                 };
@@ -474,7 +475,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
         const { data: updatedProfile, error: profileError } = await supabase
             .from('profiles')
-            .update(updatePayload)
+            .update(updatePayload as any)
             .eq('id', signUpData.user.id)
             .select('*')
             .single();
@@ -512,7 +513,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             override_pin: userUpdate.overridePin
         };
         Object.keys(updatePayload).forEach(key => (updatePayload as any)[key] === undefined && delete (updatePayload as any)[key]);
-        const { error } = await supabase.from('profiles').update(updatePayload).eq('id', userUpdate.id);
+        const { error } = await supabase.from('profiles').update(updatePayload as any).eq('id', userUpdate.id);
         if (error) throw error;
 
         setUsers(prev => prev.map(u => u.id === userUpdate.id ? { ...u, ...userUpdate } : u));
@@ -552,7 +553,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
     const addUserDeduction = async (userId: string, deductionData: { reason: string, amount: number }) => {
         const insertPayload: DeductionInsert = { user_id: userId, reason: deductionData.reason, amount: deductionData.amount };
-        const { data, error } = await supabase.from('deductions').insert([insertPayload]).select().single();
+        const { data, error } = await supabase.from('deductions').insert([insertPayload] as any).select().single();
         if (error) throw error;
         if (!data) throw new Error("Failed to add deduction");
         const newDeduction: Deduction = { id: data.id, userId: data.user_id, reason: data.reason, amount: data.amount, date: new Date(data.date) };
@@ -598,7 +599,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         };
         const { data: newTimeLog, error: newTimeLogError } = await supabase
             .from('time_logs')
-            .insert([insertPayload])
+            .insert([insertPayload] as any)
             .select()
             .single();
 
@@ -613,7 +614,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         };
         const { error: profileError } = await supabase
             .from('profiles')
-            .update(updatePayload)
+            .update(updatePayload as any)
             .eq('id', userId);
         
         if (profileError) {
@@ -677,7 +678,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         };
         const { error: profileError } = await supabase
             .from('profiles')
-            .update(profileUpdatePayload)
+            .update(profileUpdatePayload as any)
             .eq('id', userId);
             
         if (profileError) throw profileError;
@@ -730,12 +731,12 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             difference: finalDifference,
             approved_by_id: approver.id
         };
-        const { error: logError } = await supabase.from('time_logs').update(logUpdatePayload).eq('id', timeLogId);
+        const { error: logError } = await supabase.from('time_logs').update(logUpdatePayload as any).eq('id', timeLogId);
         if (logError) throw logError;
         
         if (user) {
             const profileUpdatePayload: ProfileUpdate = { time_clock_status: 'Clocked Out' };
-            const { error: profileError } = await supabase.from('profiles').update(profileUpdatePayload).eq('id', logToApprove.userId);
+            const { error: profileError } = await supabase.from('profiles').update(profileUpdatePayload as any).eq('id', logToApprove.userId);
             if (profileError) {
                 console.error(`Shift approved, but failed to update profile for ${user.name}:`, profileError);
                 alert(`Warning: Shift approved for ${user.name}, but their status could not be updated.`);
@@ -782,7 +783,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     
         if (user) {
             const profileUpdatePayload: ProfileUpdate = { time_clock_status: 'Awaiting Clearance' };
-            const { error: profileError } = await supabase.from('profiles').update(profileUpdatePayload).eq('id', logToReject.userId);
+            const { error: profileError } = await supabase.from('profiles').update(profileUpdatePayload as any).eq('id', logToReject.userId);
             if (profileError) {
                 console.error(`Shift rejected, but failed to update profile for ${user.name}:`, profileError);
             }
@@ -820,7 +821,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     
             if (profileData && profileData.time_clock_status === 'Clocked In') {
                 console.warn(`Admin ${profileData.name} has status 'Clocked In' but no 'Ongoing' log in DB. Forcing clock out to fix state.`);
-                const { error: profileUpdateError } = await supabase.from('profiles').update({ time_clock_status: 'Clocked Out', clock_in_time: null }).eq('id', userId);
+                const { error: profileUpdateError } = await supabase.from('profiles').update({ time_clock_status: 'Clocked Out', clock_in_time: null } as any).eq('id', userId);
                 
                 if (!profileUpdateError) {
                     const updatedUsers = users.map(u => u.id === userId ? { ...u, timeClockStatus: 'Clocked Out' as const, clockInTime: undefined } : u);
@@ -836,7 +837,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
     
         const ongoingLog: TimeLog = {
-            ...ongoingLogData,
+            ...(ongoingLogData as any),
             userId: ongoingLogData.user_id,
             userName: user.name,
             clockInTime: new Date(ongoingLogData.clock_in_time),
@@ -866,14 +867,14 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             duration_hours: durationHours,
             approved_by_id: userId
         };
-        const { error: logError } = await supabase.from('time_logs').update(updatePayload).eq('id', ongoingLog.id);
+        const { error: logError } = await supabase.from('time_logs').update(updatePayload as any).eq('id', ongoingLog.id);
         if (logError) {
             console.error("Failed to update time log during admin clock out:", logError);
             return null;
         }
     
         const profileUpdatePayload: ProfileUpdate = { time_clock_status: 'Clocked Out', clock_in_time: null };
-        const { error: profileError } = await supabase.from('profiles').update(profileUpdatePayload).eq('id', userId);
+        const { error: profileError } = await supabase.from('profiles').update(profileUpdatePayload as any).eq('id', userId);
         
         if (profileError) {
             console.error("Failed to update profile for clock-out. Rolling back time log state.", profileError);
@@ -887,7 +888,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 duration_hours: null,
                 approved_by_id: null
             };
-            await supabase.from('time_logs').update(rollbackPayload).eq('id', ongoingLog.id);
+            await supabase.from('time_logs').update(rollbackPayload as any).eq('id', ongoingLog.id);
             return null;
         }
     
@@ -991,7 +992,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         };
         const { data: saleData, error: saleError } = await supabase
             .from('sales')
-            .insert([saleInsertPayload])
+            .insert([saleInsertPayload] as any)
             .select()
             .single();
         
@@ -1008,7 +1009,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             price_at_sale: item.price
         }));
     
-        const { error: saleItemsError } = await supabase.from('sale_items').insert(saleItemsData);
+        const { error: saleItemsError } = await supabase.from('sale_items').insert(saleItemsData as any);
     
         if (saleItemsError) {
             console.error("Error creating sale items, rolling back sale:", saleItemsError);
@@ -1050,10 +1051,10 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         for (const update of stockUpdates) {
             if (update && 'id' in update && update.id) {
                 const productUpdatePayload: ProductUpdate = { stock: update.newStock };
-                await supabase.from('products').update(productUpdatePayload).eq('id', update.id);
+                await supabase.from('products').update(productUpdatePayload as any).eq('id', update.id);
             } else if (update && 'kegId' in update && update.kegId) {
                 const kegUpdatePayload: KegInstanceUpdate = { current_volume: update.newVolume, sales: update.newSales as unknown as Json };
-                await supabase.from('keg_instances').update(kegUpdatePayload).eq('id', update.kegId);
+                await supabase.from('keg_instances').update(kegUpdatePayload as any).eq('id', update.kegId);
             }
         }
         
@@ -1117,7 +1118,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }
         
         console.warn(`Inconsistent state confirmed for ${profileData.name}. Forcing clock out.`);
-        const { error: updateError } = await supabase.from('profiles').update({ time_clock_status: 'Clocked Out', clock_in_time: null }).eq('id', userId);
+        const { error: updateError } = await supabase.from('profiles').update({ time_clock_status: 'Clocked Out', clock_in_time: null } as any).eq('id', userId);
         
         if (updateError) {
             console.error(`Heal failed: Could not update profile for ${user.name}`, updateError);
@@ -1143,7 +1144,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             return; 
         }
 
-        const existingIds = existingMethods.map(m => m.id);
+        const existingIds = (existingMethods || []).map(m => m.id);
         const newIds = settings.paymentMethods.map(m => m.id);
         const idsToDelete = existingIds.filter(id => !newIds.includes(id));
         
@@ -1160,7 +1161,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }));
 
         if (methodsToUpsert.length > 0) {
-            const { error: upsertError } = await supabase.from('payment_methods').upsert(methodsToUpsert);
+            const { error: upsertError } = await supabase.from('payment_methods').upsert(methodsToUpsert as any);
             if (upsertError) console.error("Error upserting payment methods:", upsertError);
         }
 
@@ -1180,7 +1181,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             auto_lock_on_print: settings.autoLockOnPrint,
         };
 
-        const { error: settingsError } = await supabase.from('store_settings').update(updatePayload).eq('id', 1);
+        const { error: settingsError } = await supabase.from('store_settings').update(updatePayload as any).eq('id', 1);
         if (settingsError) {
             console.error("Failed to save store settings to the database:", settingsError);
         }
@@ -1226,7 +1227,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const { error: profileError } = await supabase.from('profiles').update({
                 time_clock_status: 'Clocked Out',
                 clock_in_time: null
-            });
+            } as any);
             if (profileError) throw profileError;
             console.log("Reset all user clock-in statuses.");
 
@@ -1263,7 +1264,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
         const { data: insertedPO, error: poError } = await supabase
             .from('purchase_orders')
-            .insert([poInsertPayload])
+            .insert([poInsertPayload] as any)
             .select()
             .single();
 
@@ -1281,7 +1282,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }));
 
         if (poItemsInsertPayload.length > 0) {
-            const { error: itemsError } = await supabase.from('purchase_order_items').insert(poItemsInsertPayload);
+            const { error: itemsError } = await supabase.from('purchase_order_items').insert(poItemsInsertPayload as any);
 
             if (itemsError) {
                 console.error("Error adding PO items, rolling back PO creation:", itemsError);
@@ -1322,7 +1323,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
         const { error: poError } = await supabase
             .from('purchase_orders')
-            .update(poUpdatePayload)
+            .update(poUpdatePayload as any)
             .eq('id', po.id);
         
         if (poError) {
@@ -1344,7 +1345,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         }));
 
         if (poItemsInsertPayload.length > 0) {
-            const { error: itemsError } = await supabase.from('purchase_order_items').insert(poItemsInsertPayload);
+            const { error: itemsError } = await supabase.from('purchase_order_items').insert(poItemsInsertPayload as any);
             if (itemsError) {
                 console.error("Error re-inserting PO items:", itemsError);
                 throw itemsError;
@@ -1376,7 +1377,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
 
             const newTotalReceived = (poItem.quantityReceived || 0) + receivedItem.quantityReceived;
 
-            const { error: poItemError } = await supabase.from('purchase_order_items').update({ quantity_received: newTotalReceived }).eq('po_id', poId).eq('product_id', receivedItem.productId);
+            const { error: poItemError } = await supabase.from('purchase_order_items').update({ quantity_received: newTotalReceived } as any).eq('po_id', poId).eq('product_id', receivedItem.productId);
             if (poItemError) {
                 console.error(`Error updating PO item ${receivedItem.productId}:`, poItemError);
                 hasErrors = true;
@@ -1386,12 +1387,12 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const product = products.find(p => p.id === receivedItem.productId);
             if (product) {
                 const newStock = product.stock + receivedItem.quantityReceived;
-                const { error: productError } = await supabase.from('products').update({ stock: newStock }).eq('id', receivedItem.productId);
+                const { error: productError } = await supabase.from('products').update({ stock: newStock } as any).eq('id', receivedItem.productId);
                 
                 if (productError) {
                     console.error(`Error updating stock for ${product.name}:`, productError);
                     hasErrors = true;
-                    await supabase.from('purchase_order_items').update({ quantity_received: poItem.quantityReceived }).eq('po_id', poId).eq('product_id', receivedItem.productId);
+                    await supabase.from('purchase_order_items').update({ quantity_received: poItem.quantityReceived } as any).eq('po_id', poId).eq('product_id', receivedItem.productId);
                 } else {
                     updatedItems = updatedItems.map(item => item.productId === receivedItem.productId ? { ...item, quantityReceived: newTotalReceived } : item);
                 }
@@ -1411,7 +1412,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             received_date: receivedDate ? receivedDate.toISOString().split('T')[0] : null,
             received_by_id: currentUser.id
         };
-        const { error: poStatusError } = await supabase.from('purchase_orders').update(poUpdatePayload).eq('id', poId);
+        const { error: poStatusError } = await supabase.from('purchase_orders').update(poUpdatePayload as any).eq('id', poId);
             
         if (poStatusError) {
             console.error("Error updating PO status:", poStatusError);
@@ -1451,13 +1452,13 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
             const id = uuidv4();
             const { userId, startTime, endTime, date } = shiftData;
             const insertPayload: ScheduledShiftInsert = { user_id: userId, start_time: startTime, end_time: endTime, date, id };
-            await supabase.from('scheduled_shifts').insert([insertPayload]);
+            await supabase.from('scheduled_shifts').insert([insertPayload] as any);
             setScheduledShifts(prev => [...prev, {...shiftData, id, userName}]);
         },
         updateScheduledShift: async (shift) => { 
             const userName = users.find(u => u.id === shift.userId)?.name || 'N/A';
             const updatePayload: ScheduledShiftUpdate = { date: shift.date, start_time: shift.startTime, end_time: shift.endTime, user_id: shift.userId };
-            await supabase.from('scheduled_shifts').update(updatePayload).eq('id', shift.id);
+            await supabase.from('scheduled_shifts').update(updatePayload as any).eq('id', shift.id);
             setScheduledShifts(prev => prev.map(s => s.id === shift.id ? {...shift, userName} : s));
         },
         deleteScheduledShift: async (shiftId) => { 
@@ -1479,7 +1480,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 serving_size: p.servingSize,
                 serving_size_unit: p.servingSizeUnit,
             };
-            const { data, error } = await supabase.from('products').insert([insertPayload]).select().single();
+            const { data, error } = await supabase.from('products').insert([insertPayload] as any).select().single();
             if (error) {
                 console.error("Error adding product:", error);
                 throw error;
@@ -1506,7 +1507,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 serving_size: p.servingSize,
                 serving_size_unit: p.servingSizeUnit,
             };
-            await supabase.from('products').update(updatePayload).eq('id', p.id);
+            await supabase.from('products').update(updatePayload as any).eq('id', p.id);
             setProducts(prev => prev.map(prod => prod.id === p.id ? { ...p, category: category?.name || 'Uncategorized' } : prod));
         },
         deleteProduct: async (id) => { 
@@ -1515,7 +1516,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         },
         addCategory: async (name) => { 
             const insertPayload: CategoryInsert = { name };
-            const { data, error } = await supabase.from('categories').insert([insertPayload]).select().single();
+            const { data, error } = await supabase.from('categories').insert([insertPayload] as any).select().single();
             if (error) {
                 console.error("Error adding category:", error);
                 throw error;
@@ -1551,7 +1552,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 mpesa_paybill: s.mpesaPaybill,
                 notes: s.notes
             };
-            await supabase.from('suppliers').insert([insertPayload]);
+            await supabase.from('suppliers').insert([insertPayload] as any);
             setSuppliers(prev => [...prev, {...s, id}]);
         },
         updateSupplier: async (s) => { 
@@ -1567,7 +1568,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 mpesa_paybill: s.mpesaPaybill,
                 notes: s.notes
             };
-            await supabase.from('suppliers').update(updatePayload).eq('id', s.id);
+            await supabase.from('suppliers').update(updatePayload as any).eq('id', s.id);
             setSuppliers(prev => prev.map(sup => sup.id === s.id ? s : sup));
         },
         deleteSupplier: async (id) => { 
@@ -1596,15 +1597,15 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 status: 'Full',
                 sales: [],
             }));
-            const { data, error } = await supabase.from('keg_instances').insert(newKegs).select();
+            const { data, error } = await supabase.from('keg_instances').insert(newKegs as any).select();
             if (error) throw error;
         
-            const { error: productError } = await supabase.from('products').update({ stock: product.stock + count }).eq('id', productId);
+            const { error: productError } = await supabase.from('products').update({ stock: product.stock + count } as any).eq('id', productId);
             if (productError) {
                 console.error("Failed to update product stock for new kegs:", productError);
             }
         
-            const newKegsForState: KegInstance[] = data!.map((k) => ({
+            const newKegsForState: KegInstance[] = (data || []).map((k) => ({
                 id: k.id, productId: k.product_id, capacity: k.capacity, currentVolume: k.current_volume, status: k.status, sales: k.sales as any[],
                 productName: product.name,
             }));
@@ -1615,7 +1616,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         tapKeg: async (kegId, userName) => {
             if (!currentUser) return;
             const updatePayload: KegInstanceUpdate = { status: 'Tapped', tapped_by_id: currentUser.id, tapped_date: new Date().toISOString() };
-            const { error } = await supabase.from('keg_instances').update(updatePayload).eq('id', kegId);
+            const { error } = await supabase.from('keg_instances').update(updatePayload as any).eq('id', kegId);
             if (error) throw error;
             const keg = kegInstances.find(k => k.id === kegId);
             setKegInstances(prev => prev.map(k => k.id === kegId ? { ...k, status: 'Tapped', tappedBy: userName, tappedDate: new Date() } : k));
@@ -1624,7 +1625,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         closeKeg: async (kegId, userName) => {
             if (!currentUser) return;
             const updatePayload: KegInstanceUpdate = { status: 'Empty', closed_by_id: currentUser.id, closed_date: new Date().toISOString() };
-            const { error } = await supabase.from('keg_instances').update(updatePayload).eq('id', kegId);
+            const { error } = await supabase.from('keg_instances').update(updatePayload as any).eq('id', kegId);
             if (error) throw error;
             const keg = kegInstances.find(k => k.id === kegId);
             setKegInstances(prev => prev.map(k => k.id === kegId ? { ...k, status: 'Empty', closedBy: userName, closedDate: new Date() } : k));
@@ -1637,7 +1638,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                  value: d.value,
                  product_ids: d.productIds || null,
              };
-             const { data, error } = await supabase.from('discounts').insert([insertPayload]).select().single();
+             const { data, error } = await supabase.from('discounts').insert([insertPayload] as any).select().single();
              if (error) {
                 console.error("Error adding discount:", error);
                 throw error;
@@ -1657,7 +1658,7 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
                 is_active: d.isActive,
                 product_ids: d.productIds || null,
             };
-            await supabase.from('discounts').update(updatePayload).eq('id', d.id);
+            await supabase.from('discounts').update(updatePayload as any).eq('id', d.id);
             setDiscounts(prev => prev.map(disc => disc.id === d.id ? d : disc));
         },
         deleteDiscount: async (id) => {
