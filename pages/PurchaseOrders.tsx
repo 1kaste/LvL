@@ -10,6 +10,7 @@ import Modal from '../components/common/Modal';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import SearchInput from '../components/common/SearchInput';
 import PurchaseOrderReceiptModal from '../components/common/PurchaseOrderReceiptModal';
+import Toast from '../components/common/Toast';
 import { FaPlus, FaEdit, FaTrash, FaPrint, FaFilePdf, FaBoxes, FaCheck, FaSearch } from 'react-icons/fa';
 import { convertImageToDataUrl } from '../utils/imageConverter';
 
@@ -265,6 +266,12 @@ const PurchaseOrders: React.FC = () => {
 
   const [isReceiveModalOpen, setReceiveModalOpen] = useState(false);
   const [poToReceive, setPoToReceive] = useState<PurchaseOrder | null>(null);
+  const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToastInfo({ show: true, message, type });
+  };
+
 
   useEffect(() => {
     if (location.state?.searchQuery) {
@@ -321,9 +328,16 @@ const PurchaseOrders: React.FC = () => {
 
   const confirmDelete = async () => {
     if (poToDelete) {
-        await deletePurchaseOrder(poToDelete);
-        setConfirmOpen(false);
-        setPOToDelete(null);
+      try {
+          await deletePurchaseOrder(poToDelete);
+          showToast(`Purchase Order #${poToDelete} deleted successfully.`);
+      } catch(error: any) {
+          console.error("Failed to delete PO:", error);
+          showToast(`Error deleting PO: ${error.message}`, 'error');
+      } finally {
+          setConfirmOpen(false);
+          setPOToDelete(null);
+      }
     }
   };
 
@@ -529,6 +543,12 @@ const PurchaseOrders: React.FC = () => {
             settings={storeSettings}
         />
       )}
+    <Toast 
+      message={toastInfo.message} 
+      show={toastInfo.show} 
+      onClose={() => setToastInfo({ ...toastInfo, show: false })} 
+      type={toastInfo.type}
+    />
     </>
   );
 };

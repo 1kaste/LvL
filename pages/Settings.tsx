@@ -609,7 +609,7 @@ const Settings: React.FC = () => {
     
     const [localStoreSettings, setLocalStoreSettings] = useState(storeSettings);
     const [localPrinterSettings, setLocalPrinterSettings] = useState(printerSettings);
-    const [toastInfo, setToastInfo] = useState({ show: false, message: '' });
+    const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
 
     // Modals state
     const [isPrinterModalOpen, setPrinterModalOpen] = useState(false);
@@ -645,8 +645,8 @@ const Settings: React.FC = () => {
         setSearchParams({ tab: tabName });
     };
 
-    const showToast = (message: string) => {
-      setToastInfo({ show: true, message });
+    const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+      setToastInfo({ show: true, message, type });
     };
 
     const dummySale = useMemo<Sale>(() => {
@@ -700,28 +700,35 @@ const Settings: React.FC = () => {
     const inputClasses = "mt-1 block w-full rounded-md border-gray-300 dark:border-dark-mode-blue-700 shadow-sm focus:border-primary-orange-500 focus:ring-primary-orange-500 sm:text-sm bg-gray-50 dark:bg-dark-mode-blue-800 dark:text-gray-200";
     const labelClasses = "block text-sm font-medium text-gray-700 dark:text-gray-300";
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (!itemToDelete) return;
-        switch (itemToDelete.type) {
-            case 'printer':
-                setLocalPrinterSettings(prev => {
-                    const newPrinters = prev.printers.filter(p => p.id !== itemToDelete.id);
-                    const newSelectedId = prev.selectedPrinterId === itemToDelete.id ? (newPrinters.length > 0 ? newPrinters[0].id : null) : prev.selectedPrinterId;
-                    return { printers: newPrinters, selectedPrinterId: newSelectedId };
-                });
-                break;
-            case 'payment':
-                setLocalStoreSettings(prev => ({
-                    ...prev,
-                    paymentMethods: prev.paymentMethods.filter(p => p.id !== itemToDelete.id)
-                }));
-                break;
-            case 'discount': deleteDiscount(itemToDelete.id); break;
-            case 'shift': deleteScheduledShift(itemToDelete.id); break;
-            case 'user': deleteUser(itemToDelete.id); break;
+        try {
+            switch (itemToDelete.type) {
+                case 'printer':
+                    setLocalPrinterSettings(prev => {
+                        const newPrinters = prev.printers.filter(p => p.id !== itemToDelete.id);
+                        const newSelectedId = prev.selectedPrinterId === itemToDelete.id ? (newPrinters.length > 0 ? newPrinters[0].id : null) : prev.selectedPrinterId;
+                        return { printers: newPrinters, selectedPrinterId: newSelectedId };
+                    });
+                    break;
+                case 'payment':
+                    setLocalStoreSettings(prev => ({
+                        ...prev,
+                        paymentMethods: prev.paymentMethods.filter(p => p.id !== itemToDelete.id)
+                    }));
+                    break;
+                case 'discount': await deleteDiscount(itemToDelete.id); break;
+                case 'shift': await deleteScheduledShift(itemToDelete.id); break;
+                case 'user': await deleteUser(itemToDelete.id); break;
+            }
+            showToast(`${itemToDelete.type.charAt(0).toUpperCase() + itemToDelete.type.slice(1)} "${itemToDelete.name}" deleted successfully.`);
+        } catch (error: any) {
+            console.error(`Failed to delete ${itemToDelete.type}:`, error);
+            showToast(`Error deleting ${itemToDelete.type}: ${error.message}`, 'error');
+        } finally {
+            setConfirmDeleteOpen(false);
+            setItemToDelete(null);
         }
-        setConfirmDeleteOpen(false);
-        setItemToDelete(null);
     };
 
     const handleUpdateSystemPin = () => {
@@ -795,7 +802,7 @@ const Settings: React.FC = () => {
         } catch (error: any) {
             const message = error.message || String(error);
             console.error("Failed to save user:", error);
-            showToast(`Error saving user: ${message}`);
+            showToast(`Error saving user: ${message}`, 'error');
         }
     };
     
@@ -1167,7 +1174,7 @@ const Settings: React.FC = () => {
             
             <div className="flex justify-end items-center gap-4"><Button type="submit" icon={<FaSave />}>Save All Settings</Button></div>
             
-            <Toast message={toastInfo.message} show={toastInfo.show} onClose={() => setToastInfo({show: false, message: ''})} />
+            <Toast message={toastInfo.message} show={toastInfo.show} onClose={() => setToastInfo({show: false, message: '', type: 'success'})} type={toastInfo.type} />
 
             <PrinterFormModal isOpen={isPrinterModalOpen} onClose={() => setPrinterModalOpen(false)} onSave={(p) => setLocalPrinterSettings(prev => ({...prev, printers: 'id' in p ? prev.printers.map(x => x.id === p.id ? p : x) : [...prev.printers, {...p, id: `prn${Date.now()}`}]}))} printer={editingPrinter} />
             <PaymentMethodFormModal isOpen={isPaymentMethodModalOpen} onClose={() => setPaymentMethodModalOpen(false)} onSave={(m) => setLocalStoreSettings(prev => ({...prev, paymentMethods: 'id' in m ? prev.paymentMethods.map(x=>x.id===m.id?m:x) : [...prev.paymentMethods, {...m, id:`pm-${Date.now()}`}]}))} method={editingPaymentMethod} />

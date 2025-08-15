@@ -8,6 +8,7 @@ import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import SearchInput from '../components/common/SearchInput';
+import Toast from '../components/common/Toast';
 import { FaPlus, FaBeer, FaTint, FaFileAlt, FaSignOutAlt, FaHistory, FaCheckCircle, FaFilePdf } from 'react-icons/fa';
 import { convertImageToDataUrl } from '../utils/imageConverter';
 
@@ -290,6 +291,11 @@ const KegManagement: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+      setToastInfo({ show: true, message, type });
+  };
 
 
   useEffect(() => {
@@ -318,10 +324,17 @@ const KegManagement: React.FC = () => {
     tapKeg(kegToTap.id, currentUser.name);
   };
 
-  const handleConfirmClose = () => {
+  const handleConfirmClose = async () => {
     if (kegToClose) {
-      closeKeg(kegToClose.id, currentUser.name);
-      setKegToClose(null);
+      try {
+        await closeKeg(kegToClose.id, currentUser.name);
+        showToast(`Keg of ${kegToClose.productName} closed successfully.`);
+      } catch (error: any) {
+        console.error("Failed to close keg:", error);
+        showToast(`Error closing keg: ${error.message}`, 'error');
+      } finally {
+        setKegToClose(null);
+      }
     }
   };
   
@@ -594,6 +607,12 @@ const KegManagement: React.FC = () => {
             ? `This keg still has approximately ${(kegToClose.currentVolume / 1000).toFixed(2)}L remaining. Are you sure you want to close it? The remaining volume will be discarded.`
             : 'Are you sure you want to close this empty keg?'
         }
+    />
+    <Toast 
+      message={toastInfo.message} 
+      show={toastInfo.show} 
+      onClose={() => setToastInfo({ ...toastInfo, show: false })} 
+      type={toastInfo.type}
     />
       
     </>

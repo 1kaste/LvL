@@ -9,6 +9,7 @@ import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 import ConfirmationModal from '../components/common/ConfirmationModal';
 import SearchInput from '../components/common/SearchInput';
+import Toast from '../components/common/Toast';
 import { FaPlus, FaPhone, FaEnvelope, FaEdit, FaTrash, FaFilePdf } from 'react-icons/fa';
 import { convertImageToDataUrl } from '../utils/imageConverter';
 
@@ -112,6 +113,11 @@ const Suppliers: React.FC = () => {
   const [isConfirmOpen, setConfirmOpen] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(location.state?.searchQuery || '');
+  const [toastInfo, setToastInfo] = useState({ show: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+      setToastInfo({ show: true, message, type });
+  };
 
   useEffect(() => {
     if (location.state?.searchQuery) {
@@ -145,9 +151,21 @@ const Suppliers: React.FC = () => {
 
   const confirmDelete = async () => {
     if (supplierToDelete) {
-        await deleteSupplier(supplierToDelete);
-        setConfirmOpen(false);
-        setSupplierToDelete(null);
+        try {
+            const supplierName = suppliers.find(s => s.id === supplierToDelete)?.name || 'the supplier';
+            await deleteSupplier(supplierToDelete);
+            showToast(`Successfully deleted ${supplierName}.`);
+        } catch (error: any) {
+            console.error("Failed to delete supplier:", error);
+            let errorMessage = "Could not delete supplier. Please try again.";
+            if (error.message && error.message.includes('foreign key constraint')) {
+                errorMessage = "Cannot delete supplier: they are linked to existing purchase orders.";
+            }
+            showToast(errorMessage, 'error');
+        } finally {
+            setConfirmOpen(false);
+            setSupplierToDelete(null);
+        }
     }
   };
 
@@ -319,6 +337,12 @@ const Suppliers: React.FC = () => {
         onConfirm={confirmDelete}
         title="Delete Supplier"
         message="Are you sure you want to delete this supplier? This action cannot be undone."
+      />
+      <Toast 
+        message={toastInfo.message} 
+        show={toastInfo.show} 
+        onClose={() => setToastInfo({ ...toastInfo, show: false })} 
+        type={toastInfo.type}
       />
     </>
   );
