@@ -171,7 +171,7 @@ const MainAppLayout: React.FC<{
       case '/users': return 'User Management';
       case '/ai-suggestions': return 'Business Growth Insights';
       case '/settings': return `Settings${settingsTab ? ` - ${settingsTab.charAt(0).toUpperCase() + settingsTab.slice(1)}` : ''}`;
-      case '/activity-log': return 'Activity Log';
+
       default: return 'Jobiflow';
     }
   };
@@ -640,7 +640,7 @@ const AppContent: React.FC = () => {
             {updateAvailable && (
                 <Toast
                     show={true}
-                    message="A new version of the app is available."
+                    message="A new version is available with new features and improvements. Please reload to update."
                     type="info"
                     onClose={() => setUpdateAvailable(false)}
                     action={{

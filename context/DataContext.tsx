@@ -152,35 +152,56 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     const fetchData = useCallback(async () => {
         setIsStoreSettingsLoading(true);
         try {
-            const usersRes = await supabase.from('profiles').select('*');
-            if(usersRes.error) throw usersRes.error;
-            const deductionsRes = await supabase.from('deductions').select('*');
-            if(deductionsRes.error) throw deductionsRes.error;
-            const productsRes = await supabase.from('products').select('*');
-            if(productsRes.error) throw productsRes.error;
-            const categoriesRes = await supabase.from('categories').select('*');
-            if(categoriesRes.error) throw categoriesRes.error;
-            const salesRes = await supabase.from('sales').select('*, sale_items(*)');
-            if(salesRes.error) throw salesRes.error;
-            const suppliersRes = await supabase.from('suppliers').select('*');
-            if(suppliersRes.error) throw suppliersRes.error;
-            const poRes = await supabase.from('purchase_orders').select('*, purchase_order_items(*)');
-            if(poRes.error) throw poRes.error;
-            const shiftsRes = await supabase.from('scheduled_shifts').select('*');
-            if(shiftsRes.error) throw shiftsRes.error;
-            const logsRes = await supabase.from('time_logs').select('*');
-            if(logsRes.error) throw logsRes.error;
-            const kegsRes = await supabase.from('keg_instances').select('*, tapped_by_user:profiles!keg_instances_tapped_by_id_fkey(name), closed_by_user:profiles!keg_instances_closed_by_id_fkey(name)');
-            if(kegsRes.error) throw kegsRes.error;
-            const discountsRes = await supabase.from('discounts').select('*').order('name');
-            if(discountsRes.error) throw discountsRes.error;
-            const activityRes = await supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(200);
-            if(activityRes.error) throw activityRes.error;
-            const settingsRes = await supabase.from('store_settings').select('*').eq('id', 1).single();
-            if(settingsRes.error) throw settingsRes.error;
-            const paymentMethodsRes = await supabase.from('payment_methods').select('*');
-            if(paymentMethodsRes.error) throw paymentMethodsRes.error;
-
+            const [
+                usersRes,
+                deductionsRes,
+                productsRes,
+                categoriesRes,
+                salesRes,
+                suppliersRes,
+                poRes,
+                shiftsRes,
+                logsRes,
+                kegsRes,
+                discountsRes,
+                activityRes,
+                settingsRes,
+                paymentMethodsRes
+            ] = await Promise.all([
+                supabase.from('profiles').select('*'),
+                supabase.from('deductions').select('*'),
+                supabase.from('products').select('*'),
+                supabase.from('categories').select('*'),
+                supabase.from('sales').select('*, sale_items(*)'),
+                supabase.from('suppliers').select('*'),
+                supabase.from('purchase_orders').select('*, purchase_order_items(*)'),
+                supabase.from('scheduled_shifts').select('*'),
+                supabase.from('time_logs').select('*'),
+                supabase.from('keg_instances').select('*, tapped_by_user:profiles!keg_instances_tapped_by_id_fkey(name), closed_by_user:profiles!keg_instances_closed_by_id_fkey(name)'),
+                supabase.from('discounts').select('*').order('name'),
+                supabase.from('activity_logs').select('*').order('timestamp', { ascending: false }).limit(200),
+                supabase.from('store_settings').select('*').eq('id', 1).single(),
+                supabase.from('payment_methods').select('*'),
+            ]);
+    
+            // Check for critical errors that would prevent the app from functioning
+            if (usersRes.error) throw new Error(`Users fetch failed: ${usersRes.error.message}`);
+            if (productsRes.error) throw new Error(`Products fetch failed: ${productsRes.error.message}`);
+            if (settingsRes.error) throw new Error(`Settings fetch failed: ${settingsRes.error.message}`);
+    
+            // Process data - non-critical errors can be logged without halting execution
+            if (deductionsRes.error) console.error("Deductions fetch failed:", deductionsRes.error);
+            if (categoriesRes.error) console.error("Categories fetch failed:", categoriesRes.error);
+            if (salesRes.error) console.error("Sales fetch failed:", salesRes.error);
+            if (suppliersRes.error) console.error("Suppliers fetch failed:", suppliersRes.error);
+            if (poRes.error) console.error("Purchase Orders fetch failed:", poRes.error);
+            if (shiftsRes.error) console.error("Shifts fetch failed:", shiftsRes.error);
+            if (logsRes.error) console.error("Time Logs fetch failed:", logsRes.error);
+            if (kegsRes.error) console.error("Kegs fetch failed:", kegsRes.error);
+            if (discountsRes.error) console.error("Discounts fetch failed:", discountsRes.error);
+            if (activityRes.error) console.error("Activity Logs fetch failed:", activityRes.error);
+            if (paymentMethodsRes.error) console.error("Payment Methods fetch failed:", paymentMethodsRes.error);
+    
             const fetchedDeductions: Deduction[] = (deductionsRes.data || []).map((d) => ({ 
                 id: d.id, 
                 userId: d.user_id,
