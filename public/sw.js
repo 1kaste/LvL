@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jobiflow-pos-cache-v5'; // Incremented for update
+const CACHE_NAME = 'jobiflow-pos-cache-v6'; // Incremented for update
 const APP_SHELL_URLS = [
   './',
   './index.html',

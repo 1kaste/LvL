@@ -953,170 +953,111 @@ export const DataProvider: React.FC<{children: ReactNode}> = ({ children }) => {
         discount?: { name: string; amount: number; }
     ): Promise<Sale | null> => {
         if (!currentUser) return null;
-
-        // Definitive pre-flight check for all items before any DB operations.
-        for (const item of order) {
-            const product = products.find(p => p.id === item.id);
-            if (!product) {
-                const message = `Error: Product "${item.name}" not found in inventory. Sale aborted.`;
-                alert(message);
-                console.error(`Sale aborted: Product with ID ${item.id} (${item.name}) not found.`);
-                return null;
-            }
-
-            if (product.productType === 'Stocked') {
-                if (item.quantity > product.stock) {
-                    const message = `Error: Insufficient stock for "${product.name}". Only ${product.stock} available. Sale aborted.`;
-                    alert(message);
-                    console.error(`Sale aborted: Insufficient stock for ${product.name}. Required: ${item.quantity}, Available: ${product.stock}.`);
-                    return null;
-                }
-            } else if (product.productType === 'Service' && product.linkedKegProductId) {
-                // This is a critical check to prevent selling from an untapped keg.
-                const tappedKeg = kegInstances.find(k => k.productId === product.linkedKegProductId && k.status === 'Tapped');
-                if (!tappedKeg) {
-                    const message = `Error: No keg is currently tapped for "${product.name}". The sale cannot be completed.`;
-                    alert(message);
-                    console.error(`Sale aborted: No tapped keg found for product ${product.name} (linked to keg product ID ${product.linkedKegProductId}).`);
-                    return null;
-                }
-                
-                if (!product.servingSize || !product.servingSizeUnit) {
-                    const message = `Error: Product "${product.name}" is not configured correctly for keg service (missing serving size). Sale aborted.`;
-                    alert(message);
-                    console.error(`Sale aborted: Product ${product.name} is missing serving size configuration.`);
-                    return null;
-                }
-
-                const volumeRequired = normalizeUnit(product.servingSize, product.servingSizeUnit) * item.quantity;
-                if (volumeRequired > tappedKeg.currentVolume) {
-                    const servingsAvailable = Math.floor(tappedKeg.currentVolume / normalizeUnit(product.servingSize, product.servingSizeUnit));
-                    const message = `Error: Insufficient volume in the keg for "${product.name}". Only ${servingsAvailable} servings left. Sale aborted.`;
-                    alert(message);
-                    console.error(`Sale aborted: Insufficient keg volume for ${product.name}. Required: ${volumeRequired}, Available: ${tappedKeg.currentVolume}.`);
-                    return null;
-                }
-            }
-        }
-    
-        const grossTotal = order.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const totalAfterDiscount = grossTotal - (discount?.amount || 0);
-        const subtotal = totalAfterDiscount / 1.16;
-        const tax = totalAfterDiscount - subtotal;
-    
+        
         const saleId = `SALE-${Date.now()}`;
+
+        try {
+            // Definitive pre-flight check for all items before any DB operations.
+            for (const item of order) {
+                const product = products.find(p => p.id === item.id);
+                if (!product) {
+                    throw new Error(`Product "${item.name}" not found in inventory.`);
+                }
     
-        const saleInsertPayload: SaleInsert = {
-            id: saleId,
-            subtotal: subtotal,
-            tax: tax,
-            total: totalAfterDiscount,
-            date: new Date().toISOString(),
-            payment_method: paymentMethod,
-            served_by_id: currentUser.id,
-            served_by_name: servedBy,
-            customer_type: customerType,
-            discount_name: discount?.name,
-            discount_amount: discount?.amount
-        };
-        const { data: saleData, error: saleError } = await supabase
-            .from('sales')
-            .insert([saleInsertPayload])
-            .select()
-            .single();
-        
-        if (saleError || !saleData) {
-            console.error("Error creating sale:", saleError);
-            return null;
-        }
-    
-        const saleItemsData: SaleItemInsert[] = order.map(item => ({
-            sale_id: saleId,
-            product_id: item.id,
-            product_name: item.name,
-            quantity: item.quantity,
-            price_at_sale: item.price
-        }));
-    
-        const { error: saleItemsError } = await supabase.from('sale_items').insert(saleItemsData);
-    
-        if (saleItemsError) {
-            console.error("Error creating sale items, rolling back sale:", saleItemsError);
-            await supabase.from('sales').delete().eq('id', saleId);
-            return null;
-        }
-    
-        const stockUpdates = order.map(item => {
-            const product = products.find(p => p.id === item.id);
-            if (!product) return null;
-    
-            if (product.productType === 'Stocked') {
-                return { id: item.id, newStock: product.stock - item.quantity };
+                if (product.productType === 'Stocked') {
+                    if (item.quantity > product.stock) {
+                        throw new Error(`Insufficient stock for "${product.name}". Only ${product.stock} available.`);
+                    }
+                } else if (product.productType === 'Service' && product.linkedKegProductId) {
+                    const tappedKeg = kegInstances.find(k => k.productId === product.linkedKegProductId && k.status === 'Tapped');
+                    if (!tappedKeg) {
+                        throw new Error(`No keg is currently tapped for "${product.name}".`);
+                    }
+                    if (!product.servingSize || !product.servingSizeUnit) {
+                        throw new Error(`Product "${product.name}" is not configured correctly for keg service (missing serving size).`);
+                    }
+                    const volumeRequired = normalizeUnit(product.servingSize, product.servingSizeUnit) * item.quantity;
+                    if (volumeRequired > tappedKeg.currentVolume) {
+                        const servingsAvailable = Math.floor(tappedKeg.currentVolume / normalizeUnit(product.servingSize, product.servingSizeUnit));
+                        throw new Error(`Insufficient volume in the keg for "${product.name}". Only ${servingsAvailable} servings left.`);
+                    }
+                }
             }
+        
+            const grossTotal = order.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            const totalAfterDiscount = grossTotal - (discount?.amount || 0);
+            const subtotal = totalAfterDiscount / 1.16;
+            const tax = totalAfterDiscount - subtotal;
+        
+            const saleInsertPayload: SaleInsert = {
+                id: saleId, subtotal, tax, total: totalAfterDiscount, date: new Date().toISOString(),
+                payment_method: paymentMethod, served_by_id: currentUser.id, served_by_name: servedBy,
+                customer_type: customerType, discount_name: discount?.name, discount_amount: discount?.amount
+            };
+            const { data: saleData, error: saleError } = await supabase.from('sales').insert([saleInsertPayload]).select().single();
+            if (saleError || !saleData) throw saleError || new Error("Sale creation failed.");
+        
+            const saleItemsData: SaleItemInsert[] = order.map(item => ({
+                sale_id: saleId, product_id: item.id, product_name: item.name,
+                quantity: item.quantity, price_at_sale: item.price
+            }));
+            const { error: saleItemsError } = await supabase.from('sale_items').insert(saleItemsData);
+            if (saleItemsError) throw saleItemsError;
+        
+            const stockUpdates = order.map(item => { /* ... see original logic ... */
+                const product = products.find(p => p.id === item.id);
+                if (!product) return null;
+                if (product.productType === 'Stocked') return { id: item.id, newStock: product.stock - item.quantity };
+                if (product.productType === 'Service' && product.linkedKegProductId) {
+                    const tappedKeg = kegInstances.find(k => k.productId === product.linkedKegProductId && k.status === 'Tapped');
+                    if (tappedKeg && product.servingSize && product.servingSizeUnit) {
+                        const volumeSold = normalizeUnit(product.servingSize, product.servingSizeUnit) * item.quantity;
+                        const newKegSale = { userId: currentUser.id, userName: currentUser.name, volumeSold, revenue: item.price * item.quantity, saleDate: new Date().toISOString() };
+                        return { kegId: tappedKeg.id, newVolume: tappedKeg.currentVolume - volumeSold, newSales: [...(tappedKeg.sales || [] as any), newKegSale] };
+                    }
+                }
+                return null;
+            }).filter(Boolean);
+        
+            for (const update of stockUpdates) {
+                if (update && 'id' in update && update.id) {
+                    await supabase.from('products').update({ stock: update.newStock }).eq('id', update.id);
+                } else if (update && 'kegId' in update && update.kegId) {
+                    await supabase.from('keg_instances').update({ current_volume: update.newVolume, sales: update.newSales as unknown as Json }).eq('id', update.kegId);
+                }
+            }
+
+            const updatedProducts = products.map(p => {
+                const update = stockUpdates.find(u => u && 'id' in u && u.id === p.id) as { id: string, newStock: number } | undefined;
+                return update ? { ...p, stock: update.newStock } : p;
+            });
+            setProducts(updatedProducts);
+        
+            const updatedKegs = kegInstances.map(k => {
+                const update = stockUpdates.find(u => u && 'kegId' in u && u.kegId === k.id) as { kegId: string, newVolume: number, newSales: any[] } | undefined;
+                return update ? { ...k, currentVolume: update.newVolume, sales: update.newSales } : k;
+            });
+            setKegInstances(updatedKegs);
             
-            if (product.productType === 'Service' && product.linkedKegProductId) {
-                 const tappedKeg = kegInstances.find(k => k.productId === product.linkedKegProductId && k.status === 'Tapped');
-                 if (tappedKeg && product.servingSize && product.servingSizeUnit) {
-                     const volumeSold = normalizeUnit(product.servingSize, product.servingSizeUnit) * item.quantity;
-                     
-                     const newKegSale = {
-                         userId: currentUser.id,
-                         userName: currentUser.name,
-                         volumeSold: volumeSold,
-                         revenue: item.price * item.quantity,
-                         saleDate: new Date().toISOString()
-                     };
-    
-                     return {
-                         kegId: tappedKeg.id,
-                         newVolume: tappedKeg.currentVolume - volumeSold,
-                         newSales: [...(tappedKeg.sales || [] as any), newKegSale]
-                     };
-                 }
-            }
+            const newSaleForState: Sale = {
+                id: saleData.id, items: order, subtotal: saleData.subtotal, tax: saleData.tax,
+                total: saleData.total, date: new Date(saleData.date), paymentMethod: saleData.payment_method,
+                servedById: saleData.served_by_id, servedBy: saleData.served_by_name, customerType: saleData.customer_type,
+                discountApplied: saleData.discount_name ? { name: saleData.discount_name, amount: saleData.discount_amount as number } : undefined
+            };
+            setSales(prev => [newSaleForState, ...prev]);
+            await addActivityLog('Sale', `Created sale #${saleData.id}`, `Total: Ksh ${saleData.total.toFixed(2)}`);
+            return newSaleForState;
+
+        } catch (error) {
+            console.error("Error during sale processing:", error);
+            // Attempt to roll back the main sale record if it was created
+            await supabase.from('sales').delete().eq('id', saleId);
+            
+            const message = error instanceof Error ? error.message : "An unknown error occurred.";
+            alert(`A critical error occurred while processing the sale: ${message}\nThe sale has been cancelled. Please check inventory levels and try again.`);
             return null;
-        }).filter(Boolean);
-    
-        for (const update of stockUpdates) {
-            if (update && 'id' in update && update.id) {
-                const productUpdatePayload: ProductUpdate = { stock: update.newStock };
-                await supabase.from('products').update(productUpdatePayload).eq('id', update.id);
-            } else if (update && 'kegId' in update && update.kegId) {
-                const kegUpdatePayload: KegInstanceUpdate = { current_volume: update.newVolume, sales: update.newSales as unknown as Json };
-                await supabase.from('keg_instances').update(kegUpdatePayload).eq('id', update.kegId);
-            }
         }
-        
-        const updatedProducts = products.map(p => {
-            const update = stockUpdates.find(u => u && 'id' in u && u.id === p.id) as { id: string, newStock: number } | undefined;
-            return update ? { ...p, stock: update.newStock } : p;
-        });
-        setProducts(updatedProducts);
-    
-        const updatedKegs = kegInstances.map(k => {
-            const update = stockUpdates.find(u => u && 'kegId' in u && u.kegId === k.id) as { kegId: string, newVolume: number, newSales: any[] } | undefined;
-            return update ? { ...k, currentVolume: update.newVolume, sales: update.newSales } : k;
-        });
-        setKegInstances(updatedKegs);
-        
-        const newSaleForState: Sale = {
-            id: saleData.id,
-            items: order,
-            subtotal: saleData.subtotal,
-            tax: saleData.tax,
-            total: saleData.total,
-            date: new Date(saleData.date),
-            paymentMethod: saleData.payment_method,
-            servedById: saleData.served_by_id,
-            servedBy: saleData.served_by_name,
-            customerType: saleData.customer_type,
-            discountApplied: saleData.discount_name ? { name: saleData.discount_name, amount: saleData.discount_amount as number } : undefined
-        };
-    
-        setSales(prev => [newSaleForState, ...prev]);
-        await addActivityLog('Sale', `Created sale #${saleData.id}`, `Total: Ksh ${saleData.total.toFixed(2)}`);
-    
-        return newSaleForState;
     };
 
     const healStuckUser = async (userId: string): Promise<boolean> => {
